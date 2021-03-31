@@ -39,17 +39,7 @@ node('build-slave') {
                 sh('chmod 777 build.sh')
                 sh("./build.sh ${build_tag} ${env.NODE_NAME} ${hub_org}")
             }
-            stage('Publish'){
-              echo 'Push to Repo'
-              sh 'ls -al ~/'
-              dir('.') {
-                sh('chmod 777 ./dockerPushToRepo.sh')
-                sh 'ARTIFACT_LABEL=bronze ./dockerPushToRepo.sh'
-                sh './src/metadata.sh > metadata.json'
-                sh 'cat metadata.json'
-                archive includes: "metadata.json"
-            }
-            }
+           
             stage('ArchiveArtifacts') {
                 archiveArtifacts "metadata.json"
                 currentBuild.description = "${build_tag}"
