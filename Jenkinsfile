@@ -5,7 +5,6 @@ node('build-slave') {
         String ANSI_BOLD = "\u001B[1m"
         String ANSI_RED = "\u001B[31m"
         String ANSI_YELLOW = "\u001B[33m"
-
         ansiColor('xterm') {
             stage('Checkout') {
                 if (!env.hub_org) {
@@ -30,7 +29,6 @@ node('build-slave') {
                 }
                 echo "build_tag: " + build_tag
             }
-
             stage('Build') {
                 env.NODE_ENV = "build"
                 print "Environment will be : ${env.NODE_ENV}"
@@ -39,31 +37,14 @@ node('build-slave') {
                 sh('chmod 777 build.sh')
                 sh("./build.sh ${build_tag} ${env.NODE_NAME} ${hub_org}")
             }
-            
             stage('ArchiveArtifacts') {
                 archiveArtifacts "metadata.json"
                 currentBuild.description = "${build_tag}"
             }
-            stage('Publish') {
-                echo 'Push to Repo'
-                sh 'ls -al ~/'
-                dir('.') {
-                  sh('chmod 777 ./dockerPushToRepo.sh')
-                  sh 'ARTIFACT_LABEL=bronze ./dockerPushToRepo.sh'
-                  sh './src/metadata.sh > metadata.json'
-                  sh 'cat metadata.json'
-                  archive includes: "metadata.json"
-               }
-            }
-           
         }
-
     }
     catch (err) {
         currentBuild.result = "FAILURE"
         throw err
     }
-
 }
-
-
