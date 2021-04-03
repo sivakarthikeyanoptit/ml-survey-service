@@ -1,0 +1,203 @@
+version: "3.3"
+
+services:
+    prometheus:
+        image: quay.io/prometheus/prometheus:v2.8.1
+        ports:
+            - "9090:9090"
+        networks:
+            - application_default
+        volumes:
+            - "{{ prometheus_mount_point }}:/prometheus"
+        command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/etc/prometheus/console_libraries  --storage.tsdb.retention.time={{prometheus_storage_retention_time}} --web.console.templates=/etc/prometheus/consoles --web.route-prefix={{prometheus_route_prefix}} --web.external-url={{prometheus_web_external_url}} --web.enable-admin-api"
+        configs:
+            - source: prometheus.yml
+              target: /etc/prometheus/prometheus.yml
+            - source: alertrules.nodes.yml
+              target: /etc/prometheus-rules/alertrules.nodes.yml
+            - source: alertrules.task.yml
+              target: /etc/prometheus-rules/alertrules.task.yml
+            - source: alertrules.kong.yml
+              target: /etc/prometheus-rules/alertrules.kong.yml
+            - source: alertrules.docker.yml
+              target: /etc/prometheus-rules/alertrules.docker.yml
+        deploy:
+            replicas: 1
+            placement:
+                constraints:
+                    - "node.labels.prometheus==1"
+            resources:
+              reservations:
+                memory: "{{ prometheus_reservation_memory }}"
+              limits:
+                memory: "{{ prometheus_limit_memory }}"
+
+    alertmanager:
+        image: prom/alertmanager:v0.16.2
+        ports:
+            - "9093:9093"
+            - "9094:9094"
+        networks:
+            - application_default
+        volumes:
+            - /var/dockerdata/alertmanager/data:/etc/alertmanager/data
+        # Clustering swarm alert managers and stateful alertmanagers
+        command: "--config.file=/etc/alertmanager/alertmanagerconfig.yml --storage.path=/alertmanager/data --web.route-prefix={{prometheus_alertmanager_route_prefix}} --web.external-url={{prometheus_alertmanager_web_external_url}} {% if groups['alertmanager'] | length > 1%} --cluster.peer {{ groups['alertmanager'] | difference(ansible_host) | join(':9094 --cluster.peer ')}}:9094 {% endif %} {% if groups['alertmanager_stateful'] %} --cluster.peer {{ groups['alertmanager_stateful'] | join(':19094 --cluster.peer ')}}:19094 {% endif %}"
+        configs:
+            - source: alertmanagerconfig.yml
+              target: /etc/alertmanager/alertmanagerconfig.yml
+        deploy:
+            replicas: 1
+            placement:
+                constraints:
+                    - "node.labels.alertmanager==1"
+            resources:
+              reservations:
+                memory: "{{ alertmanager_reservation_memory }}"
+              limits:
+                memory: "{{ alertmanager_limit_memory }}"
+
+    blackbox-exporter:
+        image: quay.io/prometheus/blackbox-exporter:v0.14.0
+        ports:
+            - "9115:9115"
+        command: "--config.file=/etc/blackbox-exporter/blackboxconfig.yml"
+        networks:
+            - application_default
+        configs:
+            - source: blackboxconfig.yml
+              target: /etc/blackbox-exporter/blackboxconfig.yml
+        deploy:
+            resources:
+                reservations:
+                    memory: "{{ blackbox_exporter_reservation_memory }}"
+                limits:
+                    memory: "{{ blackbox_exporter_limit_memory }}"
+
+    cadvisor:
+        image: google/cadvisor:v0.33.0
+        ports:
+            - "8081:8080"
+        networks:
+            - application_default
+        volumes:
+            - /:/rootfs:ro
+            - /var/run:/var/run:rw
+            - /sys:/sys:ro
+            - /var/lib/docker/:/var/lib/docker:ro
+        deploy:
+            mode: global
+            resources:
+                reservations:
+                    memory: "{{ cadvisor_reservation_memory }}"
+                limits:
+                    memory: "{{ cadvisor_limit_memory }}"
+
+    statsd-service:
+        image: quay.io/prometheus/statsd-exporter:v0.9.0
+        ports:
+            - 9102:9102
+            - 9125:9125
+            - 9125:9125/udp
+        networks:
+            - application_default
+        command:
+            - '--statsd.mapping-config=/etc/statsd_exporter/statsd_mapping.yml'
+        configs:
+            - source: statsd_mapping.yml
+              target: /etc/statsd_exporter/statsd_mapping.yml
+        deploy:
+            resources:
+                reservations:
+                    memory: "{{ statsd_exporter_reservation_memory }}"
+                limits:
+                    memory: "{{ statsd_exporter_limit_memory }}"
+
+    kong_cluster_exporter:
+        image: sunbird/prometheus-jsonpath-exporter:v0.0.1
+        ports:
+            - 9158:9158
+        networks:
+            - application_default
+        command: /etc/kong_cluster_exporter/config.yml
+        configs:
+            - source: kong_cluster_exporter_config.yml
+              target: /etc/kong_cluster_exporter/config.yml
+        deploy:
+            resources:
+                reservations:
+                    memory: "{{ jsonpath_exporter_reservation_memory }}"
+                limits:
+                    memory: "{{ jsonpath_exporter_limit_memory }}"
+
+    logstash:
+        image: sunbird/logstash:2.4.1
+        command: logstash -f /conf/logstash.conf
+        environment:
+            - LOGSPOUT=ignore
+            - LS_HEAP_SIZE={{ monitor_logstash_heap_size }}
+        configs:
+            - source: monitor_logstash.conf
+              target: /conf/logstash.conf
+            - source: monitor_logstash_grok_patterns
+              target: /conf/grok_patterns
+        ports:
+            - '51416:51415'
+            - '5045:5044'
+        networks:
+            - application_default
+        deploy:
+            replicas: {{ monitor_logstash_replicas }}
+            resources:
+                reservations:
+                    memory: "{{ monitor_logstash_reservation_memory }}"
+                limits:
+                    memory: "{{ monitor_logstash_limit_memory }}"
+
+    logspout:
+        image: gliderlabs/logspout:v3.2.3
+        command: syslog+tcp://monitor_logstash:51415?filter.name=*_proxy.*
+        deploy:
+            mode: global
+            resources:
+                reservations:
+                    memory: "{{ monitor_logspout_reservation_memory }}"
+                limits:
+                    memory: "{{ monitor_logspout_limit_memory }}"
+        environment:
+            - SYSLOG_FORMAT=rfc3164
+        depends_on:
+            - monitor_logstash
+        volumes:
+            - '/var/run/docker.sock:/tmp/docker.sock'
+        networks:
+            - application_default
+
+configs:
+  prometheus.yml:
+    external: true
+  alertrules.nodes.yml:
+    external: true
+  alertrules.task.yml:
+    external: true
+  alertrules.kong.yml:
+    external: true
+  alertrules.docker.yml:
+    external: true
+  alertmanagerconfig.yml:
+    external: true
+  blackboxconfig.yml:
+    external: true
+  statsd_mapping.yml:
+    external: true
+  kong_cluster_exporter_config.yml:
+    external: true
+  monitor_logstash.conf:
+    external: true
+  monitor_logstash_grok_patterns:
+    external: true
+
+networks:
+    application_default:
+        external: true
+

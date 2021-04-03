@@ -1,0 +1,14 @@
+---
+# You can choose host names on jenkins and run the job. If you have custom host groups, you can add them to jenkins job and run
+# To start or stop filebeat, choose the tag on jenkins job
+- hosts: "{{ hosts }}"
+  become: yes
+  gather_facts: no
+  ignore_unreachable: yes
+  vars_files:
+    - "{{inventory_dir}}/secrets.yml"
+  tasks:
+  - include_role:
+     name: vm-agents-filebeat
+    tags:
+    - "{{ tags }}"

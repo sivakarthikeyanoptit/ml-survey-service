@@ -1,0 +1,10 @@
+- name: Copy the jar
+  become: yes
+  copy:
+    src: "{{cassandra_jar_path}}/{{cassandra_jar_name}}"
+    dest: "{{cassandra_deploy_path}}"
+  run_once: true
+
+- name: Run the application
+  shell: "java -jar {{cassandra_jar_name}}"
+  run_once: true

@@ -1,0 +1,81 @@
+version: '3.3'
+
+services:
+  logstash:
+{% if groups['log-es-2'] is defined %}
+    image: sunbird/logstash:6.2.3
+    command: /usr/share/logstash/bin/logstash -f /etc/logstash/conf.d/logstash.conf
+    deploy:
+      mode: global
+      resources:
+        reservations:
+          memory: "{{ logger_logstash_reservation_memory }}"
+          cpus: "{{ logger_logstash_reservation_cpu }}"
+        limits:
+          memory: "{{ logger_logstash_limit_memory }}"
+          cpus: "{{ logger_logstash_limit_cpu }}"
+    environment:
+      - LOGSPOUT=ignore
+      - LS_HEAP_SIZE={{ logger_logstash_heap_size }}
+    configs:
+      - source: logstash.conf
+        target: /etc/logstash/conf.d/logstash.conf
+    ports:
+      - '51415:51415'
+      - '5044:5044'
+    networks:
+      - application_default  
+{% else %}
+    image: sunbird/logstash:2.4.1
+    command: logstash -f /conf/logstash.conf
+    deploy:
+      mode: gloabl
+      resources:
+        reservations:
+          memory: "{{ logger_logstash_reservation_memory }}"
+          cpus: "{{ logger_logspout_reservation_cpu }}"
+        limits:
+          memory: "{{ logger_logstash_limit_memory }}"
+          cpus: "{{ logger_logspout_limit_cpu }}"
+    environment:
+      - LOGSPOUT=ignore
+      - LS_HEAP_SIZE={{ logger_logstash_heap_size }}
+    configs:
+      - source: logstash.conf
+        target: /conf/logstash.conf
+    ports:
+      - '51415:51415'
+      - '5044:5044'
+    networks:
+      - application_default  
+{% endif %}      
+
+  logspout:
+    image: gliderlabs/logspout:v3.2.6
+    command: syslog+tcp://logger_logstash:51415
+    deploy:
+      mode: global
+      resources:
+        reservations:
+          memory: "{{ logger_logspout_reservation_memory }}"
+          cpus: "{{ logger_logspout_reservation_cpu }}"
+        limits:
+          memory: "{{ logger_logspout_limit_memory }}"
+          cpus: "{{ logger_logspout_limit_cpu }}"
+    environment:
+      - SYSLOG_FORMAT=rfc3164
+      - INACTIVITY_TIMEOUT=1m
+    volumes:
+      - '/var/run/docker.sock:/tmp/docker.sock'
+      - '/home/deployer/cluster_name:/etc/host_hostname'
+    networks:
+      - application_default
+
+configs:
+  logstash.conf:
+    external: true
+
+networks:
+  application_default:
+    external: true
+

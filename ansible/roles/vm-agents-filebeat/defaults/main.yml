@@ -1,0 +1,2 @@
+filebeat_version: "6.8.13"
+filebeat_config_directory: "/etc/filebeat/configs"

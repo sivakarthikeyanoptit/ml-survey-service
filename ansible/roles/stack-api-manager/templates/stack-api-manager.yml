@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  kong:
+    image: "{{hub_org}}/{{image_name}}:{{image_tag}}"
+    env_file:
+      /home/deployer/env/api-manager.env
+    ports:
+      - 8000:8000
+      - 8001:8001
+    networks:
+      - application_default
+    deploy:
+      replicas: {{ kong_replicas }}
+      resources:
+        reservations:
+          cpus: "{{ kong_reserve_cpu }}"
+          memory: "{{ kong_reservation_memory }}"
+        limits:
+          memory: "{{ kong_limit_memory }}"
+          cpus: "{{ kong_limit_cpu }}"
+      update_config:
+        parallelism: 1
+        delay: 30s
+
+  echo:
+    image: "sunbird/echo-server:1.5.0-bronze"
+    networks:
+      - application_default
+    ports:
+      - 9595:9595
+    deploy:
+      replicas: {{ echo_service_replicas }}
+      resources:
+        reservations:
+          memory: "{{ echo_service_reservation_memory }}"
+          cpus: "{{ echo_service_reserve_cpu }}"
+        limits:
+          memory: "{{ echo_service_limit_memory }}"
+          cpus: "{{ echo_service_limit_cpu }}"
+      update_config:
+        parallelism: 1
+        delay: 5s
+    healthcheck:
+      test: wget -q -s http://localhost:9595/hello || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+networks:
+  application_default:
+    external: true

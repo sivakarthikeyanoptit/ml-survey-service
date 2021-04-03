@@ -1,0 +1,73 @@
+version: '3.1'
+
+services:
+  jenkins-slave:
+    image: vfarcic/jenkins-swarm-agent:17.10.07-4
+    environment:
+      USER_NAME_SECRET: "/run/secrets/${JENKINS_USER_SECRET:-jenkins-user}"
+      PASSWORD_SECRET: "/run/secrets/${JENKINS_PASS_SECRET:-jenkins-pass}"
+      COMMAND_OPTIONS: "-master ${JENKINS_URL} -labels general-{{env_short_name}} -executors 1 -name general-{{env_short_name}}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - jenkins-user
+      - jenkins-pass
+      - hub-pass
+      - source: deployer-ssh-key
+        target: "{{deployer_name}}"
+        mode: 0600
+      - source: ops-private-key
+        target: "{{ops_name}}"
+        mode: 0600
+      - source: vault-pass
+        target: vault-pass
+        mode: 0600
+    deploy:
+      replicas: {{ jenkins_replicas }}
+      resources:
+        reservations:
+          memory: "{{ general_jenkins_slave_reservation_memory }}"
+        limits:
+          memory: "{{ general_jenkins_slave_limit_memory }}"
+    networks:
+      - application_default
+
+  api-manager-jenkins-slave:
+    image: sunbird/api-manager-jenkins-swarm-agent
+    environment:
+      USER_NAME_SECRET: "/run/secrets/${JENKINS_USER_SECRET:-jenkins-user}"
+      PASSWORD_SECRET: "/run/secrets/${JENKINS_PASS_SECRET:-jenkins-pass}"
+      COMMAND_OPTIONS: "-master ${JENKINS_URL} -labels kong-{{env_short_name}} -executors 1 -name kong-{{env_short_name}}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - jenkins-user
+      - jenkins-pass
+      - vault-pass
+    deploy:
+      replicas: 1
+      resources:
+        reservations:
+          memory: "{{ api_manager_jenkins_slave_reservation_memory }}"
+        limits:
+          memory: "{{ api_manager_jenkins_slave_limit_memory }}"
+    networks:
+      - application_default
+
+secrets:
+  jenkins-user:
+    external: true
+  jenkins-pass:
+    external: true
+  hub-pass:
+    external: true
+  deployer-ssh-key:
+    external: true
+  ops-private-key:
+    external: true
+  vault-pass:
+    external: true
+
+networks:
+  application_default:
+    external: true

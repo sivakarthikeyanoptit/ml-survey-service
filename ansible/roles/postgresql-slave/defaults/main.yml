@@ -1,0 +1,16 @@
+postgresql_master_host: "{{ groups['postgresql-master'][0] }}"
+postgresql_listen_address: '*'
+postgresql_port: 5432
+postgres_replication_user_name: replication
+postgres_slave_to_master_trigger_file: /tmp/postgresql.trigger.{{ postgresql_port }}
+postgresql_archive_dir: "{{ postgresql_data_dir }}/archive"
+
+postgresql_slave_global_config_options:
+  - option: unix_socket_directories
+    value: '{{ postgresql_unix_socket_directories | join(",") }}'
+  - option: listen_addresses
+    value: '{{ postgresql_listen_address }}'
+  - option: port
+    value: "{{ postgresql_port }}"
+  - option: hot_standby
+    value: on

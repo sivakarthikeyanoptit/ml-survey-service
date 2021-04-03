@@ -1,0 +1,27 @@
+version: '3.1'
+services:
+  learner_service:
+    image: "{{hub_org}}/{{image_name}}:{{image_tag}}"
+    env_file:
+      /home/deployer/env/sunbird_learner_service.env
+    deploy:
+      replicas: {{ learner_replicas | default(1) }}
+      resources:
+        reservations:
+          memory: "{{ learner_reservation_memory  | default('256M') }}"
+        limits:
+          memory: "{{ learner_limit_memory  | default('512M') }}"
+    # healthcheck:
+    #   test: curl -f http://localhost:9000/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+     - "9000:9000"
+     - "8099:8099"
+     - "9010:9010"
+    networks:
+      - application_default
+networks:
+  application_default:
+    external: true

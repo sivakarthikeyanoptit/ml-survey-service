@@ -1,0 +1,37 @@
+---
+
+- name: Ensure stack directory exists
+  file:
+    path: /home/deployer/stack
+    state: directory
+    owner: root
+    group: root
+
+- name: Ensure config directory exists
+  file:
+    path: /home/deployer/config
+    state: directory
+    owner: root
+    group: root
+
+- name: Save stack file
+  template: src=stack-logger.yml dest=/home/deployer/stack/logger.yml mode=0644
+
+- name: Save logstash config
+  template: src=logstash.conf dest=/home/deployer/config/logstash.conf mode=0644
+
+- name: Remove stack
+  shell: "docker stack rm logger"
+  ignore_errors: yes
+
+- name: Remove old logstash docker config
+  shell: "docker config rm logstash.conf"
+  ignore_errors: yes
+
+- name: Save logstash config as docker config
+  shell: "docker config create logstash.conf /home/deployer/config/logstash.conf"
+
+- name: Deploy stack
+  shell: "docker stack deploy -c logger.yml logger"
+  args:
+    chdir: /home/deployer/stack

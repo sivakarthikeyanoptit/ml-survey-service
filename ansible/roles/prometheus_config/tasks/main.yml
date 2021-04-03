@@ -1,0 +1,24 @@
+---
+- name: Update process exporter ip
+  replace:
+    path: "{{ monitor_config_files_dest_dir }}/prometheus.yml"
+    regexp: ":1111']$"
+    replace: ":1111{% for ip in groups['process-exporter'] %}','{{ ip }}:1111{% endfor %}']"
+
+- name: Remove monitor stack
+  shell: "docker stack rm monitor_stateful"
+  ignore_errors: yes
+
+- name: Remove docker config
+  shell: "docker config rm stateful_prometheus.yml"
+  ignore_errors: yes
+
+- name: Create docker config
+  command: "docker config create stateful_prometheus.yml prometheus.yml"
+  args:
+    chdir: "{{ monitor_config_files_dest_dir }}"
+
+- name: Deploy stack
+  shell: "docker stack deploy -c monitor_stateful.yml monitor_stateful"
+  args:
+    chdir: "{{ monitor_stack_files_dest_dir }}"

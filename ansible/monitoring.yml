@@ -1,0 +1,20 @@
+- hosts: all
+  become: yes
+  gather_facts: false
+  ignore_unreachable: true
+  vars_files:
+    - ['{{inventory_dir}}/secrets.yml', 'secrets/{{env}}.yml']
+  roles:
+    - vm-agents-nodeexporter
+  tags:
+    - metrics-exporter
+
+- hosts: process-exporter
+  become: yes
+  ignore_unreachable: true
+  vars_files:
+    - ['{{inventory_dir}}/secrets.yml', 'secrets/{{env}}.yml']
+  roles:
+    - vm-agents-processexporter
+  tags:
+    - metrics-exporter

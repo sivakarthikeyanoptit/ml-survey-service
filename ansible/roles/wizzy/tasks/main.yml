@@ -1,0 +1,5 @@
+---
+- name: Install wizzy
+  shell: "npm install wizzy@0.6.0 -g"
+  async: 1800
+  poll: 10

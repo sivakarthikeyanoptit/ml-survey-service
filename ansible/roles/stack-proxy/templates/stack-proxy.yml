@@ -1,0 +1,80 @@
+version: '3.3'
+
+services:
+  proxy:
+    image: "{{hub_org}}/{{image_name}}:{{image_tag}}"
+    # This is a workaround for remote ip address is not visible nginx
+    ports:
+      - mode: host
+        target: 80
+        published: 31380
+        protocol: TCP
+      - mode: host
+        target: 443
+        published: 31390
+        protocol: TCP
+    deploy:
+      mode: global
+      resources:
+        reservations:
+          memory: "{{ proxy_reservation_memory }}"
+          cpus: "{{ proxy_reserve_cpu  }}"
+        limits:
+          memory: "{{ proxy_limit_memory }}"
+          cpus: "{{ proxy_limit_cpu  }}"
+      update_config:
+        parallelism: 1
+        delay: 30s
+    secrets:
+{# Skip copying ssls for no domain configs #}
+{% if proto=='https' %}
+      - site.key
+      - site.crt
+{% if merge_proxy_server_name is not none %}
+      - sitemerge.key
+      - sitemerge.crt
+{% endif %}
+{% endif %}
+      - prom_admin_creds
+    configs:
+{% if merge_proxy_server_name is not none %}
+      - source: keycloak.conf
+        target: /etc/nginx/conf.d/keycloak.conf
+{% endif %}
+      - source: nginx.conf
+        target: /etc/nginx/nginx.conf
+      - source: proxy-default.conf
+        target: /etc/nginx/conf.d/default.conf
+    networks:
+      - application_default
+
+secrets:
+{# Skip copying ssls for no domain configs #}
+{% if proto=='https' %}
+  site.key:
+    external: true
+  site.crt:
+    external: true
+{% if merge_proxy_server_name is not none %}
+  sitemerge.key:
+    external: true
+  sitemerge.crt:
+    external: true
+{% endif %}
+{% endif %}
+  prom_admin_creds:
+    external: true
+
+configs:
+{% if merge_proxy_server_name is not none %}
+  keycloak.conf:
+    external: true
+{% endif %}
+  nginx.conf:
+    external: true
+  proxy-default.conf:
+    external: true
+
+networks:
+  application_default:
+    external: true

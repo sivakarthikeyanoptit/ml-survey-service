@@ -1,0 +1,16 @@
+- name: Create wizyy working dir
+  file: dest={{ wizzy_working_dir }} state=directory
+
+- name: Create wizyy config dir
+  file: dest={{ wizzy_conf_dir }} state=directory
+
+- name: Create wizzy config
+  template: src=wizzy.json dest="{{ wizzy_conf_dir }}/wizzy.json"
+
+- name: Create import-dashboards-from-git-repo.sh
+  template: src=import-dashboards-from-git-repo.sh dest="{{ wizzy_working_dir }}/import-dashboards-from-git-repo.sh" mode=0755
+
+- name: Import dashboards from git repo
+  command: "{{ wizzy_working_dir }}/import-dashboards-from-git-repo.sh"
+  args:
+    chdir: "{{ wizzy_working_dir }}"
