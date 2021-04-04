@@ -1,3 +1,0 @@
-dependencies:
-  - role: postgresql
-    postgresql_global_config_options: "{{ postgresql_slave_global_config_options }}"

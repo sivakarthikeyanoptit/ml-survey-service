@@ -1,3 +1,0 @@
----
-# defaults file for ansible/roles/prometheus-backup-v2
-prometheus_backup_azure_container_name: prometheus-backup
