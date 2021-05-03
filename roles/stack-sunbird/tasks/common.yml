@@ -1,0 +1,45 @@
+---
+- name: Login to docker
+  shell: "docker login {{ vault_docker_registry_url }} -u {{ vault_docker_registry_user }} -p {{ vault_docker_registry_password }}"
+  no_log: True
+  ignore_errors: yes
+
+- name: Ensure env directory exists
+  file:
+    path: /home/deployer/env
+    state: directory
+    owner: root
+    group: root
+
+- name: Ensure stack directory exists
+  file:
+    path: /home/deployer/stack
+    state: directory
+    owner: root
+    group: root
+
+- name: Ensure config directory exists
+  file:
+    path: /home/deployer/config
+    state: directory
+    owner: root
+    group: root
+
+- name: debugging
+  debug:
+    msg: "sunbird_{{service_name}}.env"
+
+- name: Remove env file
+  file: path=/home/deployer/env/sunbird_{{service_name}}.env state=absent
+
+- name: check if env file exists
+  stat: path={{role_path}}/templates/sunbird_{{service_name}}.env
+  register: out
+  delegate_to: "localhost"
+
+- debug: var=out
+
+- name: Save service configurations into an env file
+  template: src="sunbird_{{service_name}}.env" dest="/home/deployer/env/sunbird_{{service_name}}.env" mode=0644
+  when: out.stat.exists
+  
